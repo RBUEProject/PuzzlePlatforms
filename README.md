@@ -47,7 +47,7 @@ Command Prompt:
 
 
 
-## 记录一些操作
+## mark一些操作
 
 ### 仅在服务器执行
 
@@ -89,7 +89,7 @@ if(!HasAuthority())
 
 游戏全局有且仅有一个的类
 
-主要用于写跨关卡逻辑，控制台命令
+主要用于写跨关卡逻辑，控制台命令,MainMenu
 
 ~~~cpp
 UFUNCTION(Exec)//控制台命令
@@ -105,6 +105,93 @@ void UPuzzlePlatformInstance::Host()
 	UWorld*World = GetWorld();
 	if (!ensure(World != nullptr))return;
 	World->ServerTravel("/Game/ThirdPersonCPP/Maps/ThirdPersonExampleMap?listen");//将玩家控制器传送到某个地图,并监听
+    //PlayerController->ClientTravel(Address,ETravelType::TRAVEL_Absolute);//将客户端传送到服务端地址的地图里
 }
+~~~
+
+## 连接C++和UMG蓝图
+
+c++类继承自UserWidget
+
+~~~cpp
+	UPROPERTY(meta = (BindWidget))
+	class UButton* Host; 
+~~~
+
+##  
+
+## Interface
+
+interface 写纯虚函数
+
+~~~c'p'p
+virtual void Host() = 0;
+~~~
+
+
+
+另一个类继承自interface,并完成实现
+
+~~~cpp
+class PUZZLEPLATFORMS_API UPuzzlePlatformInstance : public UGameInstance,public IMenuInterface
+{
+	GENERATED_BODY()
+
+public:
+
+	UFUNCTION(Exec)//控制台命令
+	void Host();
+};
+~~~
+
+~~~cpp
+Menu->SetMenuInterface(this);//让menu找到这个接口实现
+~~~
+
+
+
+Menu使用这个接口的类
+
+~~~c'p'p
+void SetMenuInterface(IMenuInterface* menuInterface);
+
+IMenuInterface* MenuInterface;
+~~~
+
+~~~cpp
+void UMainMenu::SetMenuInterface(IMenuInterface* menuInterface)
+{
+	MenuInterface = menuInterface;
+}
+
+void UMainMenu::HostServer()
+{
+	if (MenuInterface != nullptr)
+	{
+		MenuInterface->Host();
+	}
+}
+~~~
+
+## Error
+
+~~~cpp
+if (!ensure(Join != nullptr)) return false;
+	Join->OnClicked.AddDynamic(this, &UMainMenu::OpenJoinMenu);
+~~~
+
+AddDynamic绑定的函数需要UFUNCTION()宏
+
+~~~cpp
+//Error
+void OpenJoinMenu();
+~~~
+
+
+
+~~~cpp
+//Right	
+UFUNCTION()
+	void OpenJoinMenu();
 ~~~
 
