@@ -5,37 +5,7 @@
 #include "Components/Button.h"
 #include "Components/WidgetSwitcher.h"
 #include "Components/EditableTextBox.h"
-void UMainMenu::SetMenuInterface(IMenuInterface* menuInterface)
-{
-	MenuInterface = menuInterface;
-}
 
-void UMainMenu::Setup()
-{
-	this->AddToViewport();
-	UWorld*World = GetWorld();
-	if(!ensure(World!=nullptr))return;
-	APlayerController* PlayerController = World->GetFirstPlayerController();
-	if (!ensure(PlayerController != nullptr))return;
-	FInputModeUIOnly InputModeData;
-	InputModeData.SetWidgetToFocus(this->TakeWidget());
-	InputModeData.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
-	PlayerController->SetInputMode(InputModeData);
-	PlayerController->bShowMouseCursor = true;
-}
-
-void UMainMenu::TearDown()//保证之前没有建立过，建立过就清除，然后重新建立
-{
-	this->RemoveFromViewport();
-	UWorld*World = GetWorld();
-	if (!ensure(World != nullptr))return;
-	APlayerController* PlayerController = World->GetFirstPlayerController();
-	if (!ensure(PlayerController != nullptr))return;
-	FInputModeGameOnly InputModeData;
-
-	PlayerController->SetInputMode(InputModeData);
-	PlayerController->bShowMouseCursor = false;
-}
 
 bool UMainMenu::Initialize()
 {
@@ -49,6 +19,8 @@ bool UMainMenu::Initialize()
 	Back->OnClicked.AddDynamic(this, &UMainMenu::BackToMainMenu);
 	if (!ensure(ConfirmJoinButton != nullptr)) return false;
 	ConfirmJoinButton->OnClicked.AddDynamic(this, &UMainMenu::JoinServer);
+	if (!ensure(ExitButton != nullptr)) return false;
+	ExitButton->OnClicked.AddDynamic(this, &UMainMenu::ExitGame);
 	return true;
 }
 
@@ -83,4 +55,13 @@ void UMainMenu::JoinServer()
 		const FString& Address = IPAddressField->GetText().ToString();
 		MenuInterface->Join(Address);
 	}
+}
+
+void UMainMenu::ExitGame()
+{
+	UWorld*World = GetWorld();
+	if (!ensure(World != nullptr))return;
+	APlayerController* PlayerController = World->GetFirstPlayerController();
+	if (!ensure(PlayerController != nullptr))return;
+	PlayerController->ConsoleCommand("quit");
 }
