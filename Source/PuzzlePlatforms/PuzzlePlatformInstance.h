@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Engine/GameInstance.h"
 #include "MenuSystem/MenuInterface.h"
+#include "OnlineSubsystem.h"
 #include "PuzzlePlatformInstance.generated.h"
 
 /**
@@ -21,7 +22,7 @@ public:
 	virtual void Init();
 
 	UFUNCTION(BlueprintCallable)
-	void LoadMenu();
+	void LoadMenuWidget();
 
 	UFUNCTION( BlueprintCallable)
 	void InGameLoadMenu();
@@ -38,4 +39,11 @@ private:
 	TSubclassOf<class UUserWidget>InGameMenuClass;
 
 	class UMainMenu*Menu;
+
+	IOnlineSessionPtr SessionInterface;
+
+	void OnCreateSessionComplete(FName SessionName,bool Success);
+	void OnDestroySessionComplete(FName SessionName,bool Success);
+
+	void CreateSession();
 };

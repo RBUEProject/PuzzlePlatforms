@@ -7,6 +7,10 @@
 #include "Blueprint/UserWidget.h"
 #include "MenuSystem/MenuWidget.h"
 #include "MenuSystem/MainMenu.h"
+#include "Interfaces/OnlineSessionInterface.h"
+#include "OnlineSessionSettings.h"
+
+const static FName SESSION_NAME = TEXT("My Session Game");
 UPuzzlePlatformInstance::UPuzzlePlatformInstance(const FObjectInitializer& ObjectInitializer)
 {
 	ConstructorHelpers::FClassFinder<UUserWidget>MenuBPClass(TEXT("/Game/MenuSystem/WBP_MainMenu"));
@@ -20,11 +24,23 @@ UPuzzlePlatformInstance::UPuzzlePlatformInstance(const FObjectInitializer& Objec
 
 void UPuzzlePlatformInstance::Init()
 {
-	
-	UE_LOG(LogTemp, Warning, TEXT("Found Class %s"), *MenuClass->GetName());
+	IOnlineSubsystem* Subsystem = IOnlineSubsystem::Get();
+	if (Subsystem != nullptr)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Found %s Subsystem "), *Subsystem->GetSubsystemName().ToString());
+		SessionInterface = Subsystem->GetSessionInterface();
+		if (SessionInterface.IsValid()) {
+			//UE_LOG(LogTemp, Warning, TEXT("Found  Session "));
+			SessionInterface->OnCreateSessionCompleteDelegates.AddUObject(this,&UPuzzlePlatformInstance::OnCreateSessionComplete);
+			SessionInterface->OnDestroySessionCompleteDelegates.AddUObject(this,&UPuzzlePlatformInstance::OnDestroySessionComplete);
+		}
+	}
+	//else {
+	//	UE_LOG(LogTemp, Warning, TEXT("Found no subsystem"));
+	//}
 }
 
-void UPuzzlePlatformInstance::LoadMenu()
+void UPuzzlePlatformInstance::LoadMenuWidget()
 {
 	if(!ensure(MenuClass!=nullptr))return;
 	Menu = CreateWidget<UMainMenu>(this,MenuClass);
@@ -44,17 +60,13 @@ void UPuzzlePlatformInstance::InGameLoadMenu()
 
 void UPuzzlePlatformInstance::Host()
 {
-	if (Menu != nullptr) {
-		Menu->TearDown();
+	auto ExistingSession = SessionInterface->GetNamedSession(SESSION_NAME);
+	if (ExistingSession != nullptr) {
+		SessionInterface->DestroySession(SESSION_NAME);
 	}
-	UEngine*Engine = GetEngine();
-	if(!ensure(Engine!=nullptr))return;
-	Engine->AddOnScreenDebugMessage(0,2,FColor::Green,TEXT("Hosting"));
-	UWorld*World = GetWorld();
-	if (!ensure(World != nullptr))return;
-
-	World->ServerTravel("/Game/ThirdPersonCPP/Maps/ThirdPersonExampleMap?listen");//将玩家控制器传送到某个地图,并监听
-
+	else {
+		CreateSession();
+	}
 }
 
 void UPuzzlePlatformInstance::Join(const FString& Address)
@@ -76,4 +88,34 @@ void UPuzzlePlatformInstance::LoadMainMenu()
 	APlayerController* PlayerController = GetFirstLocalPlayerController();
 	if (!ensure(PlayerController != nullptr))return;
 	PlayerController->ClientTravel("/Game/MenuSystem/MainMenu", ETravelType::TRAVEL_Absolute);
+}
+
+void UPuzzlePlatformInstance::OnCreateSessionComplete(FName SessionName, bool Success)
+{
+	if(!Success)return;
+	if (Menu != nullptr) {
+		Menu->TearDown();
+	}
+	UEngine*Engine = GetEngine();
+	if (!ensure(Engine != nullptr))return;
+	Engine->AddOnScreenDebugMessage(0, 2, FColor::Green, TEXT("Hosting"));
+	UWorld*World = GetWorld();
+	if (!ensure(World != nullptr))return;
+
+	World->ServerTravel("/Game/ThirdPersonCPP/Maps/ThirdPersonExampleMap?listen");//将玩家控制器传送到某个地图,并监听
+}
+
+void UPuzzlePlatformInstance::OnDestroySessionComplete(FName SessionName, bool Success)
+{
+	if (Success) {
+		CreateSession();
+	}
+}
+
+void UPuzzlePlatformInstance::CreateSession()
+{
+	if (SessionInterface.IsValid()) {
+		FOnlineSessionSettings SessionSettings;
+		SessionInterface->CreateSession(0, SESSION_NAME, SessionSettings);//第0个玩家,创建会话
+	}
 }

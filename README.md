@@ -195,3 +195,162 @@ UFUNCTION()
 	void OpenJoinMenu();
 ~~~
 
+## Steam & Unreal
+
+Steam
+
+↑
+
+Steamworks SDK 
+
+↑
+
+Online Sub-System  
+
+↑
+
+Unreal Engine
+
+
+
+## 配置&测试
+
+build.cs
+
+~~~cpp
+ OnlineSubsystem
+~~~
+
+DeaultEngine
+
+~~~cpp
+[OnlineSubsystem]
+DefaultPlatformService=NULL
+~~~
+
+gameinstance
+
+~~~cpp
+#include "OnlineSubsystem.h"
+
+void UPuzzlePlatformInstance::Init()
+{
+	IOnlineSubsystem* Subsystem = IOnlineSubsystem::Get();//寻找在线子系统
+	if (Subsystem != nullptr)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Found %s Subsystem "), *Subsystem->GetSubsystemName().ToString());
+		IOnlineSessionPtr SessionInterface = Subsystem->GetSessionInterface();//寻找会话接口
+		if (SessionInterface.IsValid()) {
+			UE_LOG(LogTemp, Warning, TEXT("Found  Session "));
+		}
+	}
+}
+~~~
+
+## 实例计数
+
+使用`TSharedPtr<AActor>`
+
+递增计数
+
+破坏时减少指针
+
+## 垃圾回收机制
+
+UObject都在一个set里
+
+unreal从 `root set`开始，遍历所有UProperty的指针
+
+没找到的UObject被删除
+
+## 创建会话
+
+- 思路：
+  - 点击Host创建会话，通过essionName判断：
+    - 如果已经创建过，调用DestroySession+CreateSession
+    - 如果没创建过，调用CreateSession
+  - 创建成功时调用OnCreateSessionComplete函数
+  - 创建失败时调用OnDestroySessionComplete函数
+
+
+
+- 销毁会话：如果不销毁会话，多次创建会产生冲突
+
+![image-20211214193111540](README.assets/image-20211214193111540.png)
+
+~~~cpp
+#include "OnlineSubsystem.h"
+
+	IOnlineSessionPtr SessionInterface;
+
+	void OnCreateSessionComplete(FName SessionName,bool Success);
+	void OnDestroySessionComplete(FName SessionName,bool Success);
+	void CreateSession();
+~~~
+
+
+
+~~~cpp
+#include "Interfaces/OnlineSessionInterface.h"
+#include "OnlineSessionSettings.h"
+
+const static FName SESSION_NAME = TEXT("My Session Game");//Session Name
+
+void UPuzzlePlatformInstance::Init()
+{
+	IOnlineSubsystem* Subsystem = IOnlineSubsystem::Get();
+	if (Subsystem != nullptr)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Found %s Subsystem "), *Subsystem->GetSubsystemName().ToString());
+		SessionInterface = Subsystem->GetSessionInterface();
+		if (SessionInterface.IsValid()) {
+			//UE_LOG(LogTemp, Warning, TEXT("Found  Session "));
+            
+            //在创建会话成功和销毁会话成功上分别绑定动态函数
+			SessionInterface->OnCreateSessionCompleteDelegates.AddUObject(this,&UPuzzlePlatformInstance::OnCreateSessionComplete);
+			SessionInterface->OnDestroySessionCompleteDelegates.AddUObject(this,&UPuzzlePlatformInstance::OnDestroySessionComplete);
+		}
+	}
+}
+
+void UPuzzlePlatformInstance::Host()
+{
+	auto ExistingSession = SessionInterface->GetNamedSession(SESSION_NAME);
+	if (ExistingSession != nullptr) {
+		SessionInterface->DestroySession(SESSION_NAME);
+	}
+	else {
+		CreateSession();
+	}
+}
+void UPuzzlePlatformInstance::OnCreateSessionComplete(FName SessionName, bool Success)
+{
+	if(!Success)return;
+	if (Menu != nullptr) {
+		Menu->TearDown();
+	}
+	UEngine*Engine = GetEngine();
+	if (!ensure(Engine != nullptr))return;
+	Engine->AddOnScreenDebugMessage(0, 2, FColor::Green, TEXT("Hosting"));
+	UWorld*World = GetWorld();
+	if (!ensure(World != nullptr))return;
+
+	World->ServerTravel("/Game/ThirdPersonCPP/Maps/ThirdPersonExampleMap?listen");//将玩家控制器传送到某个地图,并监听
+}
+
+void UPuzzlePlatformInstance::OnDestroySessionComplete(FName SessionName, bool Success)
+{
+	if (Success) {
+		CreateSession();
+	}
+}
+
+void UPuzzlePlatformInstance::CreateSession()
+{
+	if (SessionInterface.IsValid()) {
+		FOnlineSessionSettings SessionSettings;
+		SessionInterface->CreateSession(0, SESSION_NAME, SessionSettings);//第0个玩家,创建会话
+	}
+}
+~~~
+
