@@ -7,19 +7,23 @@
 
 #include "MainMenu.generated.h"
 
-/**
- * 
- */
+
 UCLASS()
 class PUZZLEPLATFORMS_API UMainMenu : public UMenuWidget
 {
 	GENERATED_BODY()
 
+public:
+	UMainMenu(const FObjectInitializer& ObjectInitializer);
+	void SetServerList(TArray<FString>ServerNames);
+	void SelectIndex(uint32 Index);
 protected:
 	virtual bool Initialize();
 
-
 private:
+
+	TSubclassOf<class UUserWidget>ServerRowClass;
+
 	UPROPERTY(meta = (BindWidget))
 	class UButton* Host; 
 	UPROPERTY(meta = (BindWidget))
@@ -38,7 +42,7 @@ private:
 	UPROPERTY(meta = (BindWidget))
 	class UWidget* MainMenu;
 	UPROPERTY(meta = (BindWidget))
-	class UEditableTextBox* IPAddressField;
+	class UPanelWidget* ServerList;
 
 
 	UFUNCTION()
@@ -52,4 +56,5 @@ private:
 	UFUNCTION()
 	void ExitGame();
 
+	TOptional<uint32>SelectedIndex;
 };

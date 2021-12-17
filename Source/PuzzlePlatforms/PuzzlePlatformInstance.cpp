@@ -7,7 +7,6 @@
 #include "Blueprint/UserWidget.h"
 #include "MenuSystem/MenuWidget.h"
 #include "MenuSystem/MainMenu.h"
-#include "Interfaces/OnlineSessionInterface.h"
 #include "OnlineSessionSettings.h"
 
 const static FName SESSION_NAME = TEXT("My Session Game");
@@ -33,11 +32,11 @@ void UPuzzlePlatformInstance::Init()
 			//UE_LOG(LogTemp, Warning, TEXT("Found  Session "));
 			SessionInterface->OnCreateSessionCompleteDelegates.AddUObject(this,&UPuzzlePlatformInstance::OnCreateSessionComplete);
 			SessionInterface->OnDestroySessionCompleteDelegates.AddUObject(this,&UPuzzlePlatformInstance::OnDestroySessionComplete);
+			SessionInterface->OnFindSessionsCompleteDelegates.AddUObject(this,&UPuzzlePlatformInstance::OnFindSessionsComplete);
+			SessionInterface->OnJoinSessionCompleteDelegates.AddUObject(this,&UPuzzlePlatformInstance::OnJoinSessionComplete);
 		}
 	}
-	//else {
-	//	UE_LOG(LogTemp, Warning, TEXT("Found no subsystem"));
-	//}
+
 }
 
 void UPuzzlePlatformInstance::LoadMenuWidget()
@@ -69,17 +68,14 @@ void UPuzzlePlatformInstance::Host()
 	}
 }
 
-void UPuzzlePlatformInstance::Join(const FString& Address)
+void UPuzzlePlatformInstance::Join(uint32 Index)
 {
+	if(!SessionInterface.IsValid())return;
+	if(!SessionSearch.IsValid())return;
 	if (Menu != nullptr) {
 		Menu->TearDown();
 	}
-	UEngine*Engine = GetEngine();
-	if (!ensure(Engine != nullptr))return;
-	Engine->AddOnScreenDebugMessage(0, 2, FColor::Green, FString::Printf(TEXT("Joining %s"),*Address));
-	APlayerController* PlayerController = GetFirstLocalPlayerController();
-	if (!ensure(PlayerController != nullptr))return;
-	PlayerController->ClientTravel(Address,ETravelType::TRAVEL_Absolute);
+	SessionInterface->JoinSession(0,SESSION_NAME,SessionSearch->SearchResults[Index]);
 }
 
 
@@ -88,6 +84,17 @@ void UPuzzlePlatformInstance::LoadMainMenu()
 	APlayerController* PlayerController = GetFirstLocalPlayerController();
 	if (!ensure(PlayerController != nullptr))return;
 	PlayerController->ClientTravel("/Game/MenuSystem/MainMenu", ETravelType::TRAVEL_Absolute);
+}
+
+void UPuzzlePlatformInstance::RefreshSessionList()
+{
+	SessionSearch = MakeShareable(new FOnlineSessionSearch());
+	if (SessionSearch.IsValid()) {
+		//SessionSearch->bIsLanQuery = true;
+		SessionSearch->MaxSearchResults = 100;//最大搜索数
+		SessionSearch->QuerySettings.Set(SEARCH_PRESENCE,true,EOnlineComparisonOp::Equals);
+		SessionInterface->FindSessions(0, SessionSearch.ToSharedRef());
+	}
 }
 
 void UPuzzlePlatformInstance::OnCreateSessionComplete(FName SessionName, bool Success)
@@ -112,10 +119,44 @@ void UPuzzlePlatformInstance::OnDestroySessionComplete(FName SessionName, bool S
 	}
 }
 
+void UPuzzlePlatformInstance::OnFindSessionsComplete(bool Success)
+{
+	if (Success&&SessionSearch.IsValid()&& Menu!=nullptr) {
+		UE_LOG(LogTemp, Warning, TEXT("Found Session"));
+		TArray<FString> ServerNames;
+		for(const FOnlineSessionSearchResult& SearchResult:SessionSearch->SearchResults){
+			UE_LOG(LogTemp, Warning, TEXT("Found Session named : %s"),*SearchResult.GetSessionIdStr());
+			ServerNames.Add(SearchResult.GetSessionIdStr());
+		}
+		Menu->SetServerList(ServerNames);
+	}
+}
+
+void UPuzzlePlatformInstance::OnJoinSessionComplete(FName SessionName, EOnJoinSessionCompleteResult::Type Result)
+{
+	if(!SessionInterface.IsValid())return;
+	FString Address;
+	if (!SessionInterface->GetResolvedConnectString(SessionName, Address)) {
+		UE_LOG(LogTemp,Warning,TEXT("Can not Get Connect String"));
+		return;
+	}
+	UEngine*Engine = GetEngine();
+	if (!ensure(Engine != nullptr))return;
+	Engine->AddOnScreenDebugMessage(0, 2, FColor::Green, FString::Printf(TEXT("Joining %s"), *Address));
+	APlayerController* PlayerController = GetFirstLocalPlayerController();
+	if (!ensure(PlayerController != nullptr))return;
+	PlayerController->ClientTravel(Address, ETravelType::TRAVEL_Absolute);
+}
+
 void UPuzzlePlatformInstance::CreateSession()
 {
 	if (SessionInterface.IsValid()) {
 		FOnlineSessionSettings SessionSettings;
+		SessionSettings.bIsLANMatch = false;//本地连接
+		SessionSettings.NumPublicConnections = 2;
+		SessionSettings.bShouldAdvertise = true;
+		SessionSettings.bUsesPresence = true;
+		SessionSettings.bUseLobbiesIfAvailable = true;//用于连接Steam
 		SessionInterface->CreateSession(0, SESSION_NAME, SessionSettings);//第0个玩家,创建会话
 	}
 }

@@ -354,3 +354,43 @@ void UPuzzlePlatformInstance::CreateSession()
 }
 ~~~
 
+## 寻找会话
+
+~~~cpp
+void UPuzzlePlatformInstance::Init()
+{
+SessionInterface->OnFindSessionsCompleteDelegates.AddUObject(this,&UPuzzlePlatformInstance::OnFindSessionsComplete);
+	SessionSearch = MakeShareable(new FOnlineSessionSearch());
+	if(SessionSearch.IsValid()) {
+		SessionInterface->FindSessions(0,SessionSearch.ToSharedRef());
+	}
+}
+void UPuzzlePlatformInstance::OnFindSessionsComplete(bool Success)
+{
+	UE_LOG(LogTemp,Warning,TEXT("Found Session"));
+}
+~~~
+
+## 配置Steam
+
+打开插件 Online Subsystem Steam
+
+build文件添加 "OnlineSubsystemSteam"
+
+defaultEngine 添加
+
+~~~cpp
+[/Script/Engine.GameEngine]
++NetDriverDefinitions=(DefName="GameNetDriver",DriverClassName="OnlineSubsystemSteam.SteamNetDriver",DriverClassNameFallback="OnlineSubsystemUtils.IpNetDriver")
+
+[OnlineSubsystem]
+DefaultPlatformService=Steam
+
+[OnlineSubsystemSteam]
+bEnabled=true
+SteamDevAppId=480
+
+[/Script/OnlineSubsystemSteam.SteamNetDriver]
+NetConnectionClassName="OnlineSubsystemSteam.SteamNetConnection"
+~~~
+
