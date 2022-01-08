@@ -29,7 +29,7 @@ public:
 	void InGameLoadMenu();
 
 	UFUNCTION(Exec)//¿ØÖÆÌ¨ÃüÁî
-	void Host()override;
+	void Host(FString ServerName)override;
 
 	UFUNCTION(Exec)
 	void Join(uint32 Index)override;
@@ -50,5 +50,6 @@ private:
 	void OnJoinSessionComplete(FName SessionName, EOnJoinSessionCompleteResult::Type Result);
 	void CreateSession();
 
+	FString DesiredServerName;
 	TSharedPtr<class FOnlineSessionSearch>SessionSearch;
 };
