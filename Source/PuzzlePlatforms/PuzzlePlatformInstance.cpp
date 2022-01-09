@@ -9,8 +9,8 @@
 #include "MenuSystem/MainMenu.h"
 #include "OnlineSessionSettings.h"
 
-const static FName SESSION_NAME = TEXT("My Session Game");
-const static FName SERVER_NAME_SETTINGS_KEY = TEXT("Server Name");
+const static FName SESSION_NAME = TEXT("GameSession");
+const static FName SERVER_NAME_SETTINGS_KEY = TEXT("ServerName");
 
 
 UPuzzlePlatformInstance::UPuzzlePlatformInstance(const FObjectInitializer& ObjectInitializer)
@@ -180,7 +180,7 @@ void UPuzzlePlatformInstance::CreateSession()
 		}
 		else 
 		{
-			SessionSettings.bIsLANMatch = false;//本地连接
+			SessionSettings.bIsLANMatch = false;
 		}
 		SessionSettings.NumPublicConnections = 2;
 		SessionSettings.bShouldAdvertise = true;
