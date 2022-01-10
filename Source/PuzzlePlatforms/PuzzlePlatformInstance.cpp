@@ -39,7 +39,10 @@ void UPuzzlePlatformInstance::Init()
 			SessionInterface->OnJoinSessionCompleteDelegates.AddUObject(this,&UPuzzlePlatformInstance::OnJoinSessionComplete);
 		}
 	}
-
+	if (GEngine != nullptr)
+	{
+		GEngine->OnNetworkFailure().AddUObject(this, &UPuzzlePlatformInstance::OnNetworkFailure);
+	}
 }
 
 void UPuzzlePlatformInstance::LoadMenuWidget()
@@ -197,4 +200,9 @@ void UPuzzlePlatformInstance::CreateSession()
 		SessionSettings.bUseLobbiesIfAvailable = true;//用于连接Steam
 		SessionInterface->CreateSession(0, SESSION_NAME, SessionSettings);//第0个玩家,创建会话
 	}
+}
+
+void UPuzzlePlatformInstance::OnNetworkFailure(UWorld*World, UNetDriver*NetDriver, ENetworkFailure::Type FailureType, const FString&ErrorString)
+{
+	LoadMainMenu();
 }
