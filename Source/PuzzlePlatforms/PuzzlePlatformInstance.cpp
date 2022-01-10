@@ -85,6 +85,14 @@ void UPuzzlePlatformInstance::Join(uint32 Index)
 }
 
 
+void UPuzzlePlatformInstance::StartSession()
+{
+	if (SessionInterface.IsValid())
+	{
+		SessionInterface->StartSession(SESSION_NAME);
+	}
+}
+
 void UPuzzlePlatformInstance::LoadMainMenu()
 {
 	APlayerController* PlayerController = GetFirstLocalPlayerController();
@@ -182,11 +190,11 @@ void UPuzzlePlatformInstance::CreateSession()
 		{
 			SessionSettings.bIsLANMatch = false;
 		}
-		SessionSettings.NumPublicConnections = 2;
+		SessionSettings.NumPublicConnections = 5;
 		SessionSettings.bShouldAdvertise = true;
 		SessionSettings.bUsesPresence = true;
 		SessionSettings.Set(SERVER_NAME_SETTINGS_KEY,DesiredServerName,EOnlineDataAdvertisementType::ViaOnlineServiceAndPing);
-		//SessionSettings.bUseLobbiesIfAvailable = true;//用于连接Steam
+		SessionSettings.bUseLobbiesIfAvailable = true;//用于连接Steam
 		SessionInterface->CreateSession(0, SESSION_NAME, SessionSettings);//第0个玩家,创建会话
 	}
 }
